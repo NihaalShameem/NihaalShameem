@@ -3,6 +3,9 @@ I'm Nihaal, a data analyst from New York City. <br>
 
 I'm primarily interested in **Data Science** and currently work as a Senior Analyst at **UM Worldwide**.
 
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/nihaalshameem/)
+
+
 <!--
 **NihaalShameem/NihaalShameem** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
