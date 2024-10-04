@@ -1,4 +1,7 @@
-## Hi there 👋
+## Hi there! 👋
+I'm Nihaal, a data analyst from New York City. <br>
+
+I'm primarily interested in Data Science and currently work as a Senior Analyst at **UM Worldwide**.
 
 <!--
 **NihaalShameem/NihaalShameem** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
