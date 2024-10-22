@@ -1,6 +1,6 @@
 ## Hi there! :wave:
 
-I'm Nihaal, a data analyst from New York City. <br>
+I'm Nihaal, a data analyst with 3+ years of experience from New York City. <br>
 
 I'm primarily interested in **Data Science** and currently work as a Senior Analyst at **UM Worldwide**.
 
