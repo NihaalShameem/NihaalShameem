@@ -2,7 +2,7 @@
 
 I'm Nihaal, a data analyst with 3+ years of experience from New York City. <br>
 
-I am primarily interested in data analytics/data science and currently work as a  Senior Analyst @UM Worldwide. <br>
+I am primarily interested in data analytics/data science jobs and currently work as a  Senior Analyst @UM Worldwide. <br>
 
 I am passionate about contributing to high-impact initiatives that drive meaningful change.
 
