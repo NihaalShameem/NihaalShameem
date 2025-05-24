@@ -15,7 +15,7 @@ class DataAnalyst:
         self.role = "Senior Analyst @ UM Worldwide"
         self.location = "New York City 🗽"
         self.experience = "3+ years"
-        self.current_focus = "Data analytics & data science"
+        self.current_focus = "Data analytics & Data science"
         self.passion = "Contributing to high-impact initiatives that drive meaningful change"
         
     def seeking(self):
