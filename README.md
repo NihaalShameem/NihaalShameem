@@ -62,39 +62,9 @@ class DataAnalyst:
 - **Tech**: Python, Tableau, Excel
 - **Value**: High-risk zone identification for optimized resource allocation
 
-## 🌟 Areas of Expertise
-
-```mermaid
-mindmap
-  root((Data Analytics))
-    Media Analytics
-      Campaign Optimization
-      Budget Allocation
-      ROI Analysis
-      Cross-Channel Attribution
-    Technical Skills
-      Statistical Analysis
-      Data Storytelling
-      Automation
-      Dashboard Development
-    Business Impact
-      Cost Reduction
-      Process Improvement
-      Client Satisfaction
-      Data-Driven Decisions
-```
-
-## 🏆 Key Achievements
-
-🎯 **$10M+ Media Spend Optimization** - Reduced wasted spend by 15% across 10+ brands  
-📈 **8% Client ROI Improvement** - Through automated Tableau dashboards and real-time optimization  
-💰 **$500K+ Annual Cost Savings** - Identified through SKU management and inventory optimization  
-⚡ **20% Reporting Efficiency Gain** - Automated cross-channel dashboards cutting manual work  
-🎖️ **86% Model Precision** - Built predictive models for employee retention and content classification  
 
 ## 🚀 Current Goals
 
-🎯 **Expanding into data science** - Building ML and advanced analytics capabilities  
 📊 **Driving meaningful change** - Working on high-impact initiatives that matter  
 🌱 **Continuous learning** - Staying current with latest analytics trends and tools  
 🤝 **Collaboration** - Connecting with fellow data professionals and teams  
