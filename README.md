@@ -41,28 +41,6 @@ class DataAnalyst:
 ![Seaborn](https://img.shields.io/badge/Seaborn-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Matplotlib](https://img.shields.io/badge/Matplotlib-11557c?style=for-the-badge&logo=python&logoColor=white)
 
-
-## 🎯 Featured Projects
-
-### 🔮 [Employee Retention Prediction](https://github.com/NihaalShameem/employee-retention-prediction)
-> **Logistic regression model achieving 86% precision** predicting attrition drivers
-- **Impact**: Potential 15%+ turnover reduction through proactive HR intervention
-- **Tech**: Python, Scikit-learn, Statistical Analysis
-- **Focus**: Low satisfaction score identification and risk assessment
-
-### 🎵 [TikTok Content Classifier](https://github.com/NihaalShameem/tiktok-content-classifier)
-> **Random Forest model with 99.5% recall** for content classification
-- **Impact**: 25% user retention boost potential, 30% moderation efficiency
-- **Tech**: Python, Random Forest, Content Analysis
-- **Innovation**: Claims vs. opinions classification for engagement optimization
-
-### 🐕 [NYC Dog Bites Safety Analysis](https://github.com/NihaalShameem/nyc-dog-bites-analysis)
-> **Interactive dashboard analyzing 20K+ incident records**
-- **Impact**: 5-10% incident reduction potential, 40% faster analysis
-- **Tech**: Python, Tableau, Excel
-- **Value**: High-risk zone identification for optimized resource allocation
-
-
 ## 🚀 Current Goals
 
 📊 **Driving meaningful change** - Working on high-impact initiatives that matter  
