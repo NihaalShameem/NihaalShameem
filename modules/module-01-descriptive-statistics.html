@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 01 · Descriptive Statistics — StatLab</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-module="m1" data-base="..">
+<main>
+  <span class="eyebrow">Part I · Foundations — Module 01</span>
+  <h1>Descriptive Statistics</h1>
+  <p class="lead">
+    Before you can predict, test, or model anything, you have to <em>describe</em> it.
+    This module is the vocabulary of data: how to summarize a column of numbers so it
+    tells the truth — and why the "average" deposit is one of the most misleading numbers
+    in iGaming.
+  </p>
+
+  <div class="card">
+    <h3>🎯 What you'll be able to do</h3>
+    <ul>
+      <li>Explain <strong>population vs. sample</strong> and why the distinction matters.</li>
+      <li>Compute and interpret <strong>mean, median, and mode</strong> — and know which to trust.</li>
+      <li>Measure spread with <strong>range, variance, standard deviation, and IQR</strong>.</li>
+      <li>Use <strong>percentiles</strong> to describe whales, casual players, and everything between.</li>
+      <li>Read the <strong>shape</strong> of a distribution (skew) from a histogram.</li>
+      <li>Do all of the above in <strong>both SQL and Python</strong>, segmented by player cohort.</li>
+    </ul>
+  </div>
+
+  <h2>1.1 &nbsp;Population vs. sample</h2>
+  <p>
+    A <strong>population</strong> is every member of the group you care about — e.g.
+    <em>all players who ever registered</em>. A <strong>sample</strong> is a subset you
+    actually measure — e.g. <em>last week's signups</em>. Almost everything in statistics
+    exists to answer one question: <em>what can a sample tell me about the population it
+    came from?</em>
+  </p>
+  <p>
+    It matters for a practical reason you'll meet in Module 4: the formula for variance is
+    slightly different for a sample (divide by <code>n − 1</code>) versus a population
+    (divide by <code>n</code>). For now, just know our four tables <em>are</em> the
+    population of this little operator — but we'll often treat slices of it as samples.
+  </p>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 In iGaming terms</div>
+    "What's the average deposit of <strong>all</strong> players this year?" is a population
+    question. "Based on the <strong>first 200</strong> signups from this new affiliate, what
+    deposit size should I expect?" is a sample question — and it comes with uncertainty.
+  </div>
+
+  <h2>1.2 &nbsp;Central tendency: mean, median, mode</h2>
+  <p>These three answer "what's a <em>typical</em> value?" — but they disagree, and the
+     disagreement is the insight.</p>
+
+  <table class="data">
+    <thead><tr><th>Measure</th><th>What it is</th><th>Breaks when…</th></tr></thead>
+    <tbody>
+      <tr><td><b>Mean</b></td><td>Sum ÷ count — the balance point</td><td>There are outliers (whales)</td></tr>
+      <tr><td><b>Median</b></td><td>The middle value when sorted</td><td>Rarely — it's robust</td></tr>
+      <tr><td><b>Mode</b></td><td>The most frequent value</td><td>Data is continuous / all unique</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout formula">
+    <div class="callout-title">∑ The mean</div>
+    <div class="math">x̄ = (x₁ + x₂ + … + xₙ) / n  =  (1/n) · Σ xᵢ</div>
+    Read "x-bar equals the sum of all the x's divided by how many there are."
+  </div>
+
+  <p>Let's compute all three for <strong>deposit amounts</strong>. Start in SQL. Notice
+     SQLite (what runs in your browser) has no built-in <code>MEDIAN</code>, so we use a
+     portable sort-and-pick trick — a genuinely useful thing to know.</p>
+
+  <div class="playground" data-engine="sql" data-title="Mean, median, mode of deposits">
+-- MEAN is easy:
+SELECT ROUND(AVG(amount), 2) AS mean_deposit FROM deposits;
+
+-- MEDIAN (portable SQLite trick: average the 1 or 2 middle rows):
+SELECT ROUND(AVG(amount), 2) AS median_deposit FROM (
+  SELECT amount FROM deposits ORDER BY amount
+  LIMIT 2 - (SELECT COUNT(*) FROM deposits) % 2
+  OFFSET (SELECT (COUNT(*) - 1) / 2 FROM deposits)
+);
+
+-- MODE (most common deposit method — mode shines on categories):
+SELECT method, COUNT(*) AS n
+FROM deposits GROUP BY method ORDER BY n DESC LIMIT 1;
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 The big reveal</div>
+    The mean deposit is about <strong>$73</strong>, but the median is about
+    <strong>$41</strong>. The mean is nearly <strong>80% higher</strong>. That gap is the
+    fingerprint of a <em>right-skewed</em> distribution: a handful of whales drag the average
+    up, so most players deposit far <em>less</em> than the "average." Report the median to
+    stakeholders when you want a number that describes a typical player.
+  </div>
+
+  <p>The same three measures in Python are one line each. pandas' <code>.describe()</code>
+     is the fastest way to get oriented with any numeric column.</p>
+
+  <div class="playground" data-engine="python" data-title="describe() and the mean/median gap">
+amt = deposits["amount"]
+print("mean:   ", round(amt.mean(), 2))
+print("median: ", round(amt.median(), 2))
+print("mode:   ", deposits["method"].mode()[0])
+print()
+print(amt.describe().round(2))
+  </div>
+
+  <h2>1.3 &nbsp;Spread: range, variance, standard deviation</h2>
+  <p>
+    Two products can have the same mean GGR per bet and feel <em>completely</em> different
+    to the business — one steady, one wildly swingy. <strong>Spread</strong> measures that
+    swing. Standard deviation is the one you'll quote most: roughly, the typical distance of
+    a value from the mean, in the same units as the data (dollars, minutes, etc.).
+  </p>
+
+  <div class="callout formula">
+    <div class="callout-title">∑ Variance &amp; standard deviation</div>
+    <div class="math">variance  σ² = (1/n) · Σ (xᵢ − x̄)²
+std dev   σ  = √(σ²)</div>
+    A handy algebraic identity lets you compute it in one pass:
+    <code>σ² = E[x²] − (E[x])²</code> — the "mean of the squares minus the square of the
+    mean." That's exactly what we use in SQLite below.
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 Standard SQL vs. our sandbox</div>
+    In Postgres / BigQuery / Snowflake you'd just write <code>STDDEV(amount)</code> and
+    <code>VAR_SAMP(amount)</code>. Browser SQLite has neither, so below we compute variance
+    by hand. Learning the manual version is worth it — it's the same trick interviewers love
+    to ask about.
+  </div>
+
+  <div class="playground" data-engine="sql" data-title="Variance & std dev by hand">
+SELECT
+  ROUND(MIN(amount), 2)                                   AS min_amt,
+  ROUND(MAX(amount), 2)                                   AS max_amt,
+  ROUND(MAX(amount) - MIN(amount), 2)                     AS range_amt,
+  ROUND(AVG(amount), 2)                                   AS mean_amt,
+  ROUND(AVG(amount*amount) - AVG(amount)*AVG(amount), 2)  AS variance,
+  ROUND(SQRT(AVG(amount*amount) - AVG(amount)*AVG(amount)), 2) AS std_dev
+FROM deposits;
+  </div>
+
+  <p>In Python, <code>.std()</code> defaults to the <em>sample</em> standard deviation
+     (the <code>n − 1</code> version, called <code>ddof=1</code>). Pass <code>ddof=0</code>
+     for the population version that matches the SQL above. The difference is tiny on 800+
+     rows, but it's exactly the kind of detail that separates a senior analyst from a junior
+     one.</p>
+
+  <div class="playground" data-engine="python" data-title="std(): sample vs population">
+amt = deposits["amount"]
+print("range:          ", round(amt.max() - amt.min(), 2))
+print("variance (pop): ", round(amt.var(ddof=0), 2))
+print("std (sample):   ", round(amt.std(ddof=1), 2))   # pandas default
+print("std (pop):      ", round(amt.std(ddof=0), 2))   # matches SQL
+  </div>
+
+  <h2>1.4 &nbsp;Percentiles &amp; quantiles</h2>
+  <p>
+    The median is just the 50th percentile. Percentiles let you describe <em>any</em> point
+    in the distribution: the <strong>p90</strong> deposit is the amount that 90% of deposits
+    fall at or below. In iGaming this is how you define VIP thresholds, set responsible-gaming
+    alerts, and size bonus offers without overpaying the masses.
+  </p>
+
+  <p>Browser SQLite has no <code>PERCENTILE_CONT</code> either, but window functions give us
+     a clean equivalent with <code>PERCENT_RANK()</code>.</p>
+
+  <div class="playground" data-engine="sql" data-title="Deposit percentiles (p50/p90/p99)">
+WITH ranked AS (
+  SELECT amount, PERCENT_RANK() OVER (ORDER BY amount) AS pr
+  FROM deposits
+)
+SELECT
+  (SELECT MIN(amount) FROM ranked WHERE pr >= 0.50) AS p50,
+  (SELECT MIN(amount) FROM ranked WHERE pr >= 0.90) AS p90,
+  (SELECT MIN(amount) FROM ranked WHERE pr >= 0.99) AS p99;
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Percentiles with quantile()">
+amt = deposits["amount"]
+print(amt.quantile([0.50, 0.90, 0.95, 0.99]).round(2))
+print()
+# A VIP rule of thumb: top 10% of depositors by amount
+vip_cut = amt.quantile(0.90)
+print(f"p90 deposit threshold: ${vip_cut:.2f}")
+print(f"deposits at/above it:  {(amt >= vip_cut).mean()*100:.1f}% of all deposits")
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Intuition: IQR &amp; outliers</div>
+    The <strong>Interquartile Range (IQR) = p75 − p25</strong> is the spread of the "middle
+    half" of players, and it's immune to whales. A common outlier rule flags anything above
+    <code>p75 + 1.5 × IQR</code>. That's exactly how a box-and-whisker plot decides which
+    deposits are dots on the far right.
+  </div>
+
+  <h2>1.5 &nbsp;Shape: skew &amp; histograms</h2>
+  <p>
+    A single picture settles the mean-vs-median debate instantly. A <strong>histogram</strong>
+    buckets values and counts them, revealing the shape. Money in iGaming is almost always
+    <strong>right-skewed</strong> (a long tail of big spenders). Let's see it.
+  </p>
+
+  <div class="playground" data-engine="python" data-title="Histogram of deposit amounts">
+import matplotlib.pyplot as plt
+
+amt = deposits["amount"]
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(amt[amt < 400], bins=40, color="#36bcf7", edgecolor="white")
+ax.axvline(amt.mean(),   color="#f85149", lw=2, label=f"mean ${amt.mean():.0f}")
+ax.axvline(amt.median(), color="#3fb950", lw=2, label=f"median ${amt.median():.0f}")
+ax.set_title("Deposit amounts are right-skewed")
+ax.set_xlabel("deposit amount ($)"); ax.set_ylabel("count")
+ax.legend()
+plt.show()
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 Read the chart</div>
+    The green median line sits to the <em>left</em> of the red mean line. That ordering —
+    <strong>median &lt; mean</strong> — <em>is</em> the definition of right (positive) skew.
+    Whenever you see it in a revenue or deposit column, reach for the median (or a log scale)
+    when you summarize for stakeholders.
+  </div>
+
+  <h2>1.6 &nbsp;Descriptive stats by segment</h2>
+  <p>
+    Real analysis is rarely one number for everyone — it's the same number <em>split by a
+    dimension</em>: value tier, acquisition channel, country, device. This is the
+    <code>GROUP BY</code> in SQL and <code>.groupby()</code> in pandas, and it's where
+    descriptive statistics start driving decisions.
+  </p>
+
+  <div class="playground" data-engine="sql" data-title="Deposit behavior by value tier">
+SELECT
+  p.value_tier,
+  COUNT(DISTINCT d.player_id)        AS depositors,
+  COUNT(*)                           AS num_deposits,
+  ROUND(AVG(d.amount), 2)            AS avg_deposit,
+  ROUND(SUM(d.amount), 0)            AS total_deposited
+FROM deposits d
+JOIN players p ON p.player_id = d.player_id
+GROUP BY p.value_tier
+ORDER BY total_deposited DESC;
+  </div>
+
+  <div class="playground" data-engine="python" data-title="One-shot segment summary">
+# Attach each deposit to its player's tier, then summarize
+d = deposits.merge(players[["player_id", "value_tier"]], on="player_id")
+
+summary = (d.groupby("value_tier")["amount"]
+             .agg(deposits="count",
+                  avg="mean",
+                  median="median",
+                  p90=lambda s: s.quantile(0.9),
+                  total="sum")
+             .round(2)
+             .sort_values("total", ascending=False))
+print(summary)
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 So what?</div>
+    A tiny "Whale" segment usually contributes a wildly outsized share of total deposits.
+    That single fact reshapes strategy: VIP retention is worth more than squeezing casual
+    conversion, and a churned whale is a five-alarm fire. Descriptive stats, segmented, is
+    how you find that lever before anyone asks.
+  </div>
+
+  <h2>Exercises</h2>
+  <p>Edit the cells and run them. Solutions are one click away — but try first.</p>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 1 — Bet stakes</div>
+    Compute the mean, median, and p99 of <code>stake</code> in the <code>bets</code> table.
+    Is the stake distribution skewed? How can you tell from just those three numbers?
+    <div class="playground" data-engine="python" data-title="Your turn">
+# Your code here
+stake = bets["stake"]
+# ...
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+stake = bets["stake"]
+print("mean:  ", round(stake.mean(), 2))
+print("median:", round(stake.median(), 2))
+print("p99:   ", round(stake.quantile(0.99), 2))
+# mean > median (and a huge p99) => right-skewed, just like deposits.
+      </div>
+    </details>
+  </div>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 2 — Average session length by product</div>
+    In SQL, return the count, average, and max <code>duration_min</code> of sessions, split
+    by <code>product</code>. Which product holds attention longer?
+    <div class="playground" data-engine="sql" data-title="Your turn">
+-- Your query here
+SELECT product
+FROM sessions
+-- ...
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="sql" data-title="Solution">
+SELECT product,
+       COUNT(*)                  AS sessions,
+       ROUND(AVG(duration_min),1) AS avg_minutes,
+       MAX(duration_min)         AS longest
+FROM sessions
+GROUP BY product
+ORDER BY avg_minutes DESC;
+      </div>
+    </details>
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Key takeaways</div>
+    <ul style="margin:6px 0">
+      <li><strong>Mean ≠ median</strong> on skewed data — and iGaming money is always skewed.</li>
+      <li><strong>Standard deviation</strong> tells you volatility in real units; <strong>IQR</strong> does it robustly.</li>
+      <li><strong>Percentiles</strong> are the language of thresholds (VIP, alerts, bonuses).</li>
+      <li>Every summary gets sharper when you <strong>segment</strong> it.</li>
+      <li>SQL and pandas give the same answers — pick the tool that fits the workflow.</li>
+    </ul>
+  </div>
+
+  <div class="pager">
+    <a class="prv" href="../index.html"><small>← Back</small> Course home</a>
+    <a class="nxt" href="module-02-probability-fundamentals.html"><small>Next →</small> 02 · Probability Fundamentals</a>
+  </div>
+</main>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/sql-engine.js"></script>
+<script src="../assets/js/py-engine.js"></script>
+<script src="../assets/js/playground.js"></script>
+</body>
+</html>

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 04 · Sampling & the CLT — StatLab</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-module="m4" data-base="..">
+<main>
+  <span class="eyebrow">Part I · Foundations — Module 04</span>
+  <h1>Sampling &amp; the Central Limit Theorem</h1>
+  <p class="lead">
+    This is the module that makes inference possible. You almost never measure the whole
+    population — you measure a <em>sample</em> and reason about the rest. The Central Limit
+    Theorem is the near-magical result that lets you do this reliably, and it's the hidden
+    engine inside every confidence interval and A/B test you'll ever run.
+  </p>
+
+  <div class="card">
+    <h3>🎯 What you'll be able to do</h3>
+    <ul>
+      <li>Explain why we sample and what makes a sample <strong>representative vs. biased</strong>.</li>
+      <li>Describe the <strong>sampling distribution</strong> of a statistic.</li>
+      <li>Compute the <strong>standard error</strong> and explain what it measures.</li>
+      <li>State and <em>demonstrate</em> the <strong>Central Limit Theorem</strong> on skewed iGaming data.</li>
+      <li>Draw <strong>random and stratified samples</strong> in SQL and Python.</li>
+      <li>Understand why bigger samples give more precise estimates — and by how much.</li>
+    </ul>
+  </div>
+
+  <h2>4.1 &nbsp;Why sample at all?</h2>
+  <p>
+    Sometimes the population is too big or too expensive to measure in full. More often in
+    analytics, the population is <em>partly in the future</em>: when you estimate a new
+    campaign's conversion rate from its first 300 signups, those 300 are a sample of all the
+    signups that campaign <em>will eventually</em> produce. Sampling well is what lets a number
+    from the past predict the future.
+  </p>
+  <div class="callout industry">
+    <div class="callout-title">🎰 Bias is the silent killer</div>
+    If you estimate "average deposit" only from players who opened the VIP email, you'll
+    massively overestimate — that's <strong>selection bias</strong>. A representative sample
+    looks like the population in miniature. Survivorship bias (only studying still-active
+    players) and self-selection (only surveying engaged users) are the traps that quietly
+    wreck analyses.
+  </div>
+
+  <h2>4.2 &nbsp;Drawing a sample</h2>
+  <p>A <strong>simple random sample</strong> gives every row an equal chance. In SQL that's
+     <code>ORDER BY RANDOM()</code>; in pandas it's <code>.sample()</code>.</p>
+
+  <div class="playground" data-engine="sql" data-title="A random sample of 30 deposits">
+SELECT ROUND(AVG(amount), 2) AS sample_mean, COUNT(*) AS n
+FROM (
+  SELECT amount FROM deposits
+  ORDER BY RANDOM()
+  LIMIT 30
+);
+-- Re-run this a few times. The sample mean jumps around the true mean (~$73)
+-- every time. That jumpiness is exactly what the standard error measures.
+  </div>
+
+  <p>
+    <strong>Stratified sampling</strong> samples <em>within</em> each group so the mix matches
+    the population — essential when a small group (whales) matters a lot. Here's the pandas
+    pattern: take 10% from each value tier.
+  </p>
+
+  <div class="playground" data-engine="python" data-title="Stratified sample by value tier">
+strat = players.groupby("value_tier").sample(frac=0.10, random_state=1)
+print("population tier mix:")
+print((players["value_tier"].value_counts(normalize=True) * 100).round(1))
+print("\nstratified sample tier mix (matches population):")
+print((strat["value_tier"].value_counts(normalize=True) * 100).round(1))
+  </div>
+
+  <h2>4.3 &nbsp;The sampling distribution &amp; standard error</h2>
+  <p>
+    Here's the key mental shift. A statistic like the sample mean <code>x̄</code> is itself a
+    random variable — take a different sample, get a different x̄. The distribution of x̄ over
+    all possible samples is the <strong>sampling distribution</strong>, and its standard
+    deviation has a special name: the <strong>standard error (SE)</strong>.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Standard error of the mean</div>
+    <div class="math">SE = σ / √n</div>
+    σ is the population standard deviation, n is the sample size. The SE shrinks as n grows —
+    but only with the <em>square root</em> of n. To halve your uncertainty you need
+    <strong>4×</strong> the data.
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Standard deviation vs. standard error</div>
+    <strong>Standard deviation</strong> describes the spread of <em>individual values</em>
+    (how much do deposits vary?). <strong>Standard error</strong> describes the spread of an
+    <em>estimate</em> (how much would my <em>average</em> deposit move if I resampled?). Mixing
+    these two up is one of the most common mistakes in analytics.
+  </div>
+
+  <h2>4.4 &nbsp;The Central Limit Theorem</h2>
+  <p>
+    Deposits are wildly skewed (Module 1 &amp; 3) — nothing like a bell curve. So here's the
+    astonishing part:
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Central Limit Theorem (CLT)</div>
+    The distribution of the <strong>sample mean</strong> approaches a <strong>Normal</strong>
+    distribution as n grows, <em>no matter what shape the original data has</em> — centered at
+    the true mean μ, with standard deviation SE = σ/√n. In practice n ≈ 30 is often enough.
+  </div>
+
+  <p>Let's prove it on our own skewed deposit data. We'll draw thousands of samples of size
+     30, take each one's mean, and look at the distribution of those means.</p>
+
+  <div class="playground" data-engine="python" data-title="Watch the CLT happen">
+import numpy as np, matplotlib.pyplot as plt
+
+amt = deposits["amount"].values
+mu, sigma = amt.mean(), amt.std(ddof=0)
+n = 30
+
+rng = np.random.default_rng(7)
+sample_means = np.array([rng.choice(amt, size=n, replace=True).mean()
+                         for _ in range(5000)])
+
+SE_formula = sigma / np.sqrt(n)
+print(f"population mean μ      = {mu:.2f}")
+print(f"mean of sample means  = {sample_means.mean():.2f}   (≈ μ)")
+print(f"SE formula σ/√n       = {SE_formula:.2f}")
+print(f"std of sample means   = {sample_means.std():.2f}   (≈ SE formula)")
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+axes[0].hist(amt[amt < 400], bins=40, color="#36bcf7", edgecolor="white")
+axes[0].set_title("Raw deposits — skewed")
+axes[1].hist(sample_means, bins=40, color="#3fb950", edgecolor="white")
+axes[1].axvline(mu, color="#f85149", lw=2)
+axes[1].set_title(f"Means of samples (n={n}) — Normal!")
+plt.show()
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 Why this is the whole ballgame</div>
+    The skewed pile on the left became a clean bell curve on the right just by averaging. That
+    is why we can put a <strong>confidence interval</strong> around an average deposit, or run
+    a <strong>t-test</strong> on revenue per user, even though the underlying data is ugly and
+    skewed. Every inference technique in Part II rests on this one theorem.
+  </div>
+
+  <h2>4.5 &nbsp;Sample size and precision</h2>
+  <p>Because SE = σ/√n, precision improves with the square root of sample size. Let's make
+     that concrete — watch how the standard error falls as n climbs.</p>
+
+  <div class="playground" data-engine="python" data-title="The √n law of diminishing returns">
+import numpy as np
+
+sigma = deposits["amount"].std(ddof=0)
+print(f"{'n':>7} {'SE = σ/√n':>12}")
+for n in [10, 30, 100, 400, 1600, 6400]:
+    print(f"{n:>7} {sigma/np.sqrt(n):>12.2f}")
+print("\nNote: each 4× increase in n only halves the SE.")
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 The business takeaway</div>
+    This is why A/B tests need real traffic and why "we ran it for a day on 50 users" is never
+    enough. Doubling your test's precision costs four times the sample. Knowing the √n law
+    keeps you from over-promising on tiny samples — and from wastefully over-collecting when
+    you already have enough.
+  </div>
+
+  <h2>Exercises</h2>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 1 — CLT on a different column</div>
+    Repeat the CLT demo using <code>stake</code> from the <code>bets</code> table (also
+    skewed). Use n = 50 and 3000 samples. Does the distribution of sample means still look
+    Normal? Does its std still match σ/√n?
+    <div class="playground" data-engine="python" data-title="Your turn">
+import numpy as np
+x = bets["stake"].values
+# ...
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+import numpy as np
+x = bets["stake"].values
+sigma, n = x.std(ddof=0), 50
+rng = np.random.default_rng(3)
+means = np.array([rng.choice(x, n, replace=True).mean() for _ in range(3000)])
+print("SE formula:", round(sigma/np.sqrt(n), 3))
+print("std of means:", round(means.std(), 3))   # ≈ SE formula -> CLT holds
+      </div>
+    </details>
+  </div>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 2 — How big a sample?</div>
+    You want to estimate the mean deposit with a standard error of no more than <strong>$5</strong>.
+    Using σ ≈ 113 and SE = σ/√n, solve for the minimum n. (Rearrange: n = (σ / SE)².)
+    <div class="playground" data-engine="python" data-title="Your turn">
+sigma = 113
+target_SE = 5
+# n = (sigma / target_SE) ** 2
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+import math
+sigma, target_SE = 113, 5
+n = (sigma / target_SE) ** 2
+print("minimum n:", math.ceil(n))   # ~511 deposits needed
+      </div>
+    </details>
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Key takeaways</div>
+    <ul style="margin:6px 0">
+      <li>We reason about populations from <strong>representative samples</strong>; bias breaks everything.</li>
+      <li>A statistic has its own distribution — the <strong>sampling distribution</strong>.</li>
+      <li><strong>SE = σ/√n</strong> measures how much an estimate would wobble if you resampled.</li>
+      <li>The <strong>CLT</strong>: sample means go Normal regardless of the data's shape — the basis of all inference.</li>
+      <li>Precision grows with <strong>√n</strong>: 4× the data for 2× the precision.</li>
+    </ul>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">🚀 Up next — Part II: Inference</div>
+    You now have the foundations: describing data, probability, distributions, and sampling.
+    Part II turns these into decision tools — <strong>confidence intervals</strong> (Module 5)
+    and <strong>hypothesis testing &amp; A/B tests</strong> (Modules 6–7) — the daily bread of
+    a senior analyst. Those modules are coming next.
+  </div>
+
+  <div class="pager">
+    <a class="prv" href="module-03-distributions.html"><small>← Previous</small> 03 · Probability Distributions</a>
+    <a class="nxt" href="../index.html"><small>Course home →</small> Roadmap</a>
+  </div>
+</main>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/sql-engine.js"></script>
+<script src="../assets/js/py-engine.js"></script>
+<script src="../assets/js/playground.js"></script>
+</body>
+</html>
