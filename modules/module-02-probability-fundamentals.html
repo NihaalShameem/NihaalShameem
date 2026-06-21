@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 02 · Probability Fundamentals — StatLab</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-module="m2" data-base="..">
+<main>
+  <span class="eyebrow">Part I · Foundations — Module 02</span>
+  <h1>Probability Fundamentals</h1>
+  <p class="lead">
+    Probability is the math of uncertainty — and every metric you live by (conversion,
+    churn, win rate, fraud likelihood) is really a probability in disguise. This module
+    builds the rules from scratch, then uses them to answer questions like "does requiring
+    KYC actually change the odds a player deposits?"
+  </p>
+
+  <div class="card">
+    <h3>🎯 What you'll be able to do</h3>
+    <ul>
+      <li>Define <strong>sample space, events, and probability</strong> precisely.</li>
+      <li>Estimate any probability straight from data as a <strong>relative frequency</strong>.</li>
+      <li>Apply the <strong>complement, addition, and multiplication</strong> rules.</li>
+      <li>Compute and interpret <strong>conditional probability</strong> P(A | B).</li>
+      <li>Test whether two events are <strong>independent</strong>.</li>
+      <li>Use <strong>Bayes' theorem</strong> to flip a conditional and update beliefs with evidence.</li>
+    </ul>
+  </div>
+
+  <h2>2.1 &nbsp;Sample space, events, probability</h2>
+  <p>
+    The <strong>sample space</strong> is the set of all possible outcomes. For "what happens
+    to a new signup?" the space is <em>{deposits, never deposits}</em>. An <strong>event</strong>
+    is any outcome (or set of outcomes) you care about — e.g. "the player deposits." A
+    <strong>probability</strong> is a number from 0 (impossible) to 1 (certain) measuring how
+    likely an event is.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Probability as relative frequency</div>
+    <div class="math">P(event) = (number of times the event happens) / (total number of trials)</div>
+    This is the bridge from a database to probability: a <code>COUNT(...) / COUNT(*)</code>
+    <em>is</em> an estimated probability.
+  </div>
+
+  <h2>2.2 &nbsp;Probability from data: conversion rate</h2>
+  <p>
+    "What's the probability a registered player deposits?" — that's just the
+    <strong>conversion rate</strong>. We define the event "converted" as <em>made at least
+    one deposit</em>, then count.
+  </p>
+
+  <div class="playground" data-engine="sql" data-title="P(deposit) — overall conversion">
+SELECT
+  COUNT(DISTINCT p.player_id)                AS total_players,
+  COUNT(DISTINCT d.player_id)                AS depositors,
+  ROUND(1.0 * COUNT(DISTINCT d.player_id)
+            / COUNT(DISTINCT p.player_id), 4) AS p_convert
+FROM players p
+LEFT JOIN deposits d ON d.player_id = p.player_id;
+-- NOTE: a LEFT JOIN fans out one row per deposit, so we must count
+-- DISTINCT players, not COUNT(*) — a classic, costly SQL mistake.
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 Watch the <code>1.0 *</code></div>
+    SQL integer division would turn <code>329 / 500</code> into <code>0</code>. Multiplying by
+    <code>1.0</code> forces floating-point math. This bites every analyst once — now it won't
+    be you.
+  </div>
+
+  <p>In Python it's a boolean mean — one of the most useful one-liners you'll ever write,
+     because <code>True</code> counts as 1 and <code>False</code> as 0.</p>
+
+  <div class="playground" data-engine="python" data-title="P(deposit) the pandas way">
+depositor_ids = set(deposits["player_id"])
+players["converted"] = players["player_id"].isin(depositor_ids)
+
+print("P(convert) =", round(players["converted"].mean(), 4))
+# The complement rule: P(not convert) = 1 - P(convert)
+print("P(no deposit) =", round(1 - players["converted"].mean(), 4))
+  </div>
+
+  <h2>2.3 &nbsp;The three rules</h2>
+  <table class="data">
+    <thead><tr><th>Rule</th><th>Formula</th><th>Use it when…</th></tr></thead>
+    <tbody>
+      <tr><td><b>Complement</b></td><td>P(not A) = 1 − P(A)</td><td>The "at least one" trick</td></tr>
+      <tr><td><b>Addition (OR)</b></td><td>P(A or B) = P(A) + P(B) − P(A and B)</td><td>Either event can happen</td></tr>
+      <tr><td><b>Multiplication (AND)</b></td><td>P(A and B) = P(A) · P(B | A)</td><td>Both events happen together</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Why subtract P(A and B)?</div>
+    If you add the players who deposit and the players who bet on sportsbook, anyone who does
+    <em>both</em> got counted twice. The addition rule subtracts that overlap once to fix the
+    double count. (If A and B can't both happen — mutually exclusive — the overlap is 0 and
+    it simplifies to P(A) + P(B).)
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 The "at least one" trick in practice</div>
+    "What's the probability a sportsbook bettor wins <em>at least one</em> of their next 5
+    bets?" is painful to compute directly. The complement makes it easy:
+    <code>1 − P(loses all 5) = 1 − (1 − p)⁵</code>. You'll formalize this with the binomial
+    distribution in Module 3.
+  </div>
+
+  <h2>2.4 &nbsp;Conditional probability</h2>
+  <p>
+    <strong>P(A | B)</strong> — "the probability of A <em>given</em> B" — restricts the world
+    to cases where B happened, then asks how often A also happens. This is the single most
+    important idea in applied analytics, because almost every business question is conditional:
+    conversion <em>given</em> a channel, churn <em>given</em> a tier, win <em>given</em> the odds.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Conditional probability</div>
+    <div class="math">P(A | B) = P(A and B) / P(B)</div>
+  </div>
+
+  <p>Question: <strong>does identity verification (KYC) change the odds a player deposits?</strong>
+     Compare P(convert | KYC verified) against P(convert | not verified).</p>
+
+  <div class="playground" data-engine="sql" data-title="P(convert | KYC status)">
+SELECT
+  p.kyc_verified,
+  COUNT(DISTINCT p.player_id)                               AS players,
+  COUNT(DISTINCT d.player_id)                               AS depositors,
+  ROUND(1.0 * COUNT(DISTINCT d.player_id)
+            / COUNT(DISTINCT p.player_id), 3)               AS p_convert
+FROM players p
+LEFT JOIN deposits d ON d.player_id = p.player_id
+GROUP BY p.kyc_verified;
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Conditional conversion by channel">
+depositor_ids = set(deposits["player_id"])
+players["converted"] = players["player_id"].isin(depositor_ids)
+
+by_channel = (players.groupby("acquisition_channel")["converted"]
+                     .agg(p_convert="mean", players="count")
+                     .round(3)
+                     .sort_values("p_convert", ascending=False))
+print(by_channel)
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 What this tells the business</div>
+    Verified players convert at about <strong>69%</strong> versus <strong>47%</strong> for
+    unverified — a 22-point gap. Whether KYC <em>causes</em> conversion or just correlates
+    with serious players is a different question (Module 13, Causal Inference). But for
+    forecasting and targeting, the conditional probability is gold.
+  </div>
+
+  <h2>2.5 &nbsp;Independence</h2>
+  <p>
+    Two events are <strong>independent</strong> if knowing one tells you nothing about the
+    other. Formally:
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Independence</div>
+    <div class="math">A ⊥ B  ⇔  P(A | B) = P(A)   ⇔   P(A and B) = P(A) · P(B)</div>
+  </div>
+  <p>
+    Since P(convert | verified) = 0.69 ≠ P(convert) = 0.66, conversion and KYC status are
+    <strong>not</strong> independent — they're related. Let's verify the multiplication test
+    directly: if independent, the observed joint probability would equal the product of the
+    marginals.
+  </p>
+
+  <div class="playground" data-engine="python" data-title="Independence check">
+depositor_ids = set(deposits["player_id"])
+players["converted"] = players["player_id"].isin(depositor_ids)
+
+p_convert  = players["converted"].mean()
+p_verified = (players["kyc_verified"] == 1).mean()
+p_joint    = ((players["converted"]) & (players["kyc_verified"] == 1)).mean()
+
+print(f"P(convert)            = {p_convert:.3f}")
+print(f"P(verified)           = {p_verified:.3f}")
+print(f"P(convert AND verified) observed = {p_joint:.3f}")
+print(f"...would be if independent       = {p_convert * p_verified:.3f}")
+print("Observed > independent estimate => positively associated, NOT independent.")
+  </div>
+
+  <h2>2.6 &nbsp;Bayes' theorem</h2>
+  <p>
+    Bayes' theorem flips a conditional probability around. You often <em>know</em>
+    P(evidence | hypothesis) but <em>want</em> P(hypothesis | evidence). It's the engine
+    behind fraud scoring, churn models, and responsible-gaming flags.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Bayes' theorem</div>
+    <div class="math">P(H | E) = P(E | H) · P(H) / P(E)
+
+P(H)     prior      — belief before evidence
+P(E | H) likelihood — how expected the evidence is if H is true
+P(H | E) posterior  — updated belief after seeing evidence</div>
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 The question</div>
+    A player just funded their wallet with <strong>crypto</strong>. How much should that raise
+    our belief that they're a <strong>high-value</strong> player (VIP or Whale)? We know the
+    pieces: the base rate of high-value players, and how often high-value players use crypto.
+    Bayes turns those into the answer we actually want — P(high-value | crypto).
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Bayes: P(high-value | used crypto)">
+crypto_players = set(deposits.loc[deposits["method"] == "Crypto", "player_id"])
+players["used_crypto"] = players["player_id"].isin(crypto_players)
+players["high_value"]  = players["value_tier"].isin(["VIP", "Whale"])
+
+# The ingredients
+prior      = players["high_value"].mean()                                  # P(H)
+likelihood = players.loc[players["high_value"], "used_crypto"].mean()      # P(E|H)
+p_evidence = players["used_crypto"].mean()                                 # P(E)
+
+posterior = likelihood * prior / p_evidence                               # Bayes
+direct    = players.loc[players["used_crypto"], "high_value"].mean()       # ground truth
+
+print(f"prior  P(high-value)          = {prior:.3f}")
+print(f"likelihood P(crypto|high-val) = {likelihood:.3f}")
+print(f"evidence  P(crypto)           = {p_evidence:.3f}")
+print(f"posterior P(high-val|crypto)  = {posterior:.3f}   (Bayes)")
+print(f"direct    P(high-val|crypto)  = {direct:.3f}   (count-it-up check)")
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 The payoff</div>
+    The prior is ~<strong>12%</strong>; after learning the player used crypto, the posterior
+    jumps to ~<strong>22%</strong> — crypto usage <em>nearly doubles</em> the odds they're
+    high-value. That's Bayesian updating: evidence moves belief. And the count-it-up "direct"
+    number matches the Bayes result exactly, proving the theorem isn't magic — it's just
+    careful bookkeeping of conditional probabilities.
+  </div>
+
+  <h2>Exercises</h2>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 1 — Conversion by device</div>
+    Compute P(convert | device) for each device type. Which device has the highest deposit
+    conversion?
+    <div class="playground" data-engine="python" data-title="Your turn">
+depositor_ids = set(deposits["player_id"])
+players["converted"] = players["player_id"].isin(depositor_ids)
+# Your code here
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+depositor_ids = set(deposits["player_id"])
+players["converted"] = players["player_id"].isin(depositor_ids)
+print(players.groupby("device")["converted"]
+             .agg(p_convert="mean", players="count")
+             .round(3).sort_values("p_convert", ascending=False))
+      </div>
+    </details>
+  </div>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 2 — The complement / "at least one"</div>
+    A sportsbook bettor wins any single bet with probability <code>p ≈ 0.40</code> (the
+    sportsbook win rate from Module 1's data). Using only the complement rule, what's the
+    probability they win <strong>at least one</strong> of their next 5 bets? Assume bets are
+    independent.
+    <div class="playground" data-engine="python" data-title="Your turn">
+p = 0.40
+n = 5
+# P(at least one win) = 1 - P(zero wins)
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+p, n = 0.40, 5
+p_at_least_one = 1 - (1 - p) ** n
+print(f"P(>=1 win in {n} bets) = {p_at_least_one:.4f}")
+# ~0.92 — the complement turns a messy sum into one subtraction.
+      </div>
+    </details>
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Key takeaways</div>
+    <ul style="margin:6px 0">
+      <li>A probability is a <code>COUNT / COUNT</code> — your database is full of them.</li>
+      <li><strong>Conditional probability</strong> P(A|B) restricts the world to B — it's how every segmented metric works.</li>
+      <li>Independence means <strong>P(A|B) = P(A)</strong>; if they differ, the events carry information about each other.</li>
+      <li><strong>Bayes</strong> flips P(E|H) into P(H|E) — the foundation of scoring, fraud, and churn models.</li>
+    </ul>
+  </div>
+
+  <div class="pager">
+    <a class="prv" href="module-01-descriptive-statistics.html"><small>← Previous</small> 01 · Descriptive Statistics</a>
+    <a class="nxt" href="module-03-distributions.html"><small>Next →</small> 03 · Probability Distributions</a>
+  </div>
+</main>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/sql-engine.js"></script>
+<script src="../assets/js/py-engine.js"></script>
+<script src="../assets/js/playground.js"></script>
+</body>
+</html>

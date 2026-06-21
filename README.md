@@ -23,6 +23,26 @@ class DataAnalyst:
         
 ```
 
+## 📊 Featured Project — StatLab
+
+**An interactive Probability & Statistics course I'm building for data analysts — runnable entirely in the browser.**
+
+Every concept is explained from scratch and tied to real **iGaming / sportsbook** metrics (GGR, LTV, retention, conversion, churn), with **live code cells you run right on the page** — SQL on SQLite (`sql.js`) and Python on Pyodide (`numpy` / `pandas` / `scipy` / `matplotlib`), all against the same seeded mock operator dataset. No installs, no setup.
+
+🔗 **Live site:** `https://nihaalshameem.github.io/NihaalShameem/` &nbsp;·&nbsp; 📂 Source in [`/modules`](modules) and [`/assets`](assets)
+
+**Foundations (live):**
+| # | Module | You'll learn |
+|---|--------|--------------|
+| 01 | [Descriptive Statistics](modules/module-01-descriptive-statistics.html) | mean vs. median, spread, percentiles, skew |
+| 02 | [Probability Fundamentals](modules/module-02-probability-fundamentals.html) | conditional probability, independence, Bayes |
+| 03 | [Probability Distributions](modules/module-03-distributions.html) | Binomial, Poisson, Normal, Exponential, Log-normal |
+| 04 | [Sampling & the CLT](modules/module-04-sampling-clt.html) | standard error, the Central Limit Theorem |
+
+*Coming next: Confidence Intervals · Hypothesis Testing · A/B Testing · Bayesian Inference · Regression · Churn/Survival · Time Series · Causal Inference · Monte Carlo.*
+
+> **Enable the live site:** in this repo go to **Settings → Pages → Build and deployment → Deploy from a branch**, pick the branch and `/ (root)` folder, save. The lab is plain static files, so it'll be live in ~1 minute. Until then you can open `index.html` locally (an internet connection is needed the first time, to fetch Pyodide/sql.js from their CDNs).
+
 ## 🛠️ Tech Stack & Tools
 
 *Building expertise across the data analytics ecosystem*

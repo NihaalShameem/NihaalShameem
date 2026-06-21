@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StatLab — Probability & Statistics for iGaming Analysts</title>
+  <meta name="description" content="An interactive, browser-based course taking a data analyst from zero to advanced in probability & statistics — every concept runnable in SQL and Python on mock iGaming/sportsbook data." />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body data-module="home">
+<main>
+  <section class="hero">
+    <span class="eyebrow">Interactive Course · iGaming &amp; Sportsbook Edition</span>
+    <h1>Probability &amp; Statistics, the way a data analyst actually uses it.</h1>
+    <p class="lead">
+      From "I've never touched stats" to advanced practitioner — every concept is
+      explained plainly, tied to a real iGaming metric (GGR, LTV, retention,
+      conversion), and <strong>runnable right here</strong> in SQL <em>and</em> Python.
+      No install. The code runs entirely in your browser.
+    </p>
+    <div class="stat-row" id="stat-row"></div>
+  </section>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 How this course works</div>
+    Every module is a web page with live code cells. Hit <strong>▶ Run</strong> and the
+    query/script executes against the same seeded mock dataset — a small but realistic
+    iGaming operator with players, deposits, bets, and sessions. SQL runs on
+    <strong>SQLite (sql.js)</strong>; Python runs on <strong>Pyodide</strong>
+    (numpy / pandas / scipy / matplotlib). Edit any cell and re-run to experiment.
+  </div>
+
+  <h2>Try it now</h2>
+  <p>Here's the dataset's heartbeat — daily Gross Gaming Revenue (GGR = stakes − payouts).
+     Run the SQL cell, then the Python cell. Same data, two tools you already use.</p>
+
+  <div class="playground" data-engine="sql" data-title="Top revenue days by product">
+SELECT product,
+       ROUND(SUM(stake) - SUM(payout), 0) AS ggr,
+       COUNT(*) AS num_bets
+FROM bets
+GROUP BY product
+ORDER BY ggr DESC;
+  </div>
+
+  <div class="playground" data-engine="python" data-title="GGR by acquisition channel">
+# Join bets to the players who made them, then roll up revenue by channel
+m = bets.merge(players[["player_id", "acquisition_channel"]], on="player_id")
+m["ggr"] = m["stake"] - m["payout"]
+summary = (m.groupby("acquisition_channel")["ggr"]
+             .agg(["sum", "mean", "count"])
+             .sort_values("sum", ascending=False)
+             .round(2))
+print(summary)
+  </div>
+
+  <h2>The dataset</h2>
+  <p>Four tables model a simplified sportsbook + casino operator. The data is
+     <strong>seeded and deterministic</strong> — identical on every page load, so
+     your answers stay reproducible.</p>
+  <div class="schema-grid" id="schema-grid"></div>
+
+  <h2>The roadmap</h2>
+  <p>Four parts, fourteen modules. The <span style="color:var(--green)">Foundations</span>
+     are live now; later modules unlock as the course grows.</p>
+  <div id="roadmap"></div>
+
+  <div class="callout">
+    <div class="callout-title">🚀 Publishing this</div>
+    This whole lab is static files — enable <strong>GitHub Pages</strong> on this repo
+    (Settings → Pages → deploy from branch) and it becomes a public portfolio piece
+    at <code>nihaalshameem.github.io/NihaalShameem</code>. See <code>README.md</code>.
+  </div>
+</main>
+
+<script src="assets/js/data.js"></script>
+<script src="assets/js/layout.js"></script>
+<script src="assets/js/sql-engine.js"></script>
+<script src="assets/js/py-engine.js"></script>
+<script src="assets/js/playground.js"></script>
+<script>
+  // ---- live stat pills ----
+  (function () {
+    const c = window.IGAMING.counts;
+    const pills = [
+      [c.players.toLocaleString(), "players"],
+      [c.deposits.toLocaleString(), "deposits"],
+      [c.bets.toLocaleString(), "bets"],
+      [c.sessions.toLocaleString(), "sessions"],
+      ["14", "modules"],
+    ];
+    document.getElementById("stat-row").innerHTML = pills
+      .map((p) => `<div class="stat-pill"><b>${p[0]}</b><span>${p[1]}</span></div>`)
+      .join("");
+
+    // ---- schema cheat-sheet from the actual schema ----
+    const desc = {
+      players: "One row per registered player",
+      deposits: "Cash-in events (wallet funding)",
+      bets: "Individual wagers (sportsbook + casino)",
+      sessions: "Login sessions (engagement signal)",
+    };
+    const sch = window.IGAMING.schema;
+    document.getElementById("schema-grid").innerHTML = Object.keys(sch)
+      .map((t) => {
+        const cols = Object.keys(sch[t])
+          .map((col) => `<li><b>${col}</b> · ${sch[t][col].toLowerCase()}</li>`)
+          .join("");
+        return `<div class="schema-box"><h4>${t}</h4><div style="color:var(--muted);font-size:12.5px;margin-bottom:8px">${desc[t]}</div><ul>${cols}</ul></div>`;
+      })
+      .join("");
+
+    // ---- roadmap from shared CURRICULUM ----
+    const blurbs = {
+      m1: "Mean, median, spread, percentiles, skew — and why averages lie in iGaming.",
+      m2: "Events, conditional probability, independence, Bayes — applied to conversion & churn.",
+      m3: "Bernoulli, Binomial, Poisson, Normal, Exponential, log-normal — the shapes of bets & money.",
+      m4: "Sampling, sampling distributions, standard error, the Central Limit Theorem.",
+      m5: "Quantifying uncertainty: CIs for rates, means, and revenue metrics.",
+      m6: "Null vs alternative, p-values, power, errors — done without the jargon trap.",
+      m7: "Designing & reading A/B tests for onboarding, bonuses, and reactivation.",
+      m8: "Priors, posteriors, and Bayesian A/B testing for faster decisions.",
+      m9: "Linear regression, correlation pitfalls, and modeling LTV drivers.",
+      m10: "Predicting churn & conversion with logistic regression and classification metrics.",
+      m11: "Trends, seasonality, and forecasting DAU / handle / GGR.",
+      m12: "Time-to-churn with survival curves and hazard models.",
+      m13: "Moving beyond correlation: diff-in-diff, matching, uplift.",
+      m14: "Simulating bankrolls, variance, and risk with Monte Carlo.",
+    };
+    let html = "";
+    let open = false;
+    for (const item of window.CURRICULUM) {
+      if (item.id === "home") continue;
+      if (item.part !== undefined && !item.id) {
+        if (open) html += "</div>";
+        html += `<div class="road-part"><h3>${item.part}</h3>`;
+        open = true;
+        continue;
+      }
+      const soon = item.status === "soon";
+      const href = soon ? "#" : item.href;
+      const status = soon ? "Coming soon" : "Ready ✓";
+      html += `<a class="road-card${soon ? " soon" : ""}" href="${href}">
+        <span class="road-num">${item.num}</span>
+        <span class="road-body"><b>${item.title}</b><span>${blurbs[item.id] || ""}</span></span>
+        <span class="road-status">${status}</span></a>`;
+    }
+    if (open) html += "</div>";
+    document.getElementById("roadmap").innerHTML = html;
+  })();
+</script>
+</body>
+</html>

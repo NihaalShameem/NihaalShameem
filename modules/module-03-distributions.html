@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Module 03 · Probability Distributions — StatLab</title>
+  <link rel="stylesheet" href="../assets/css/style.css" />
+</head>
+<body data-module="m3" data-base="..">
+<main>
+  <span class="eyebrow">Part I · Foundations — Module 03</span>
+  <h1>Probability Distributions</h1>
+  <p class="lead">
+    A distribution is the "shape" of randomness — it tells you which values are likely and
+    which are rare. Learn the handful of named distributions in this module and you'll
+    recognize them everywhere in iGaming: a single bet, a parlay, bets-per-day, session
+    lengths, deposit sizes, and daily revenue each have a characteristic shape with a name.
+  </p>
+
+  <div class="card">
+    <h3>🎯 What you'll be able to do</h3>
+    <ul>
+      <li>Tell a <strong>discrete</strong> random variable from a <strong>continuous</strong> one.</li>
+      <li>Model a single yes/no outcome with <strong>Bernoulli</strong> and counts of them with the <strong>Binomial</strong>.</li>
+      <li>Model event counts per period (bets/day, arrivals) with the <strong>Poisson</strong>.</li>
+      <li>Use the <strong>Normal</strong> distribution, z-scores, and the 68–95–99.7 rule.</li>
+      <li>Model waiting times with the <strong>Exponential</strong>, and skewed money with the <strong>Log-normal</strong>.</li>
+      <li>Drive all of this with <code>scipy.stats</code>: <code>pmf</code>, <code>pdf</code>, <code>cdf</code>, <code>mean</code>, <code>rvs</code>.</li>
+    </ul>
+  </div>
+
+  <h2>3.1 &nbsp;Random variables &amp; the toolkit</h2>
+  <p>
+    A <strong>random variable</strong> is a number whose value depends on chance — the payout
+    of a bet, the number of deposits tomorrow. <strong>Discrete</strong> variables take
+    countable values (0, 1, 2 wins); <strong>continuous</strong> ones take any value in a
+    range (a $43.95 deposit, a 12.7-minute session).
+  </p>
+  <table class="data">
+    <thead><tr><th>Function</th><th>Discrete</th><th>Continuous</th><th>Answers</th></tr></thead>
+    <tbody>
+      <tr><td><b>PMF / PDF</b></td><td><code>pmf(k)</code></td><td><code>pdf(x)</code></td><td>How likely is exactly this value?</td></tr>
+      <tr><td><b>CDF</b></td><td colspan="2"><code>cdf(x)</code></td><td>P(value ≤ x)</td></tr>
+      <tr><td><b>Survival</b></td><td colspan="2"><code>sf(x) = 1 − cdf(x)</code></td><td>P(value &gt; x)</td></tr>
+      <tr><td><b>Sampling</b></td><td colspan="2"><code>rvs(size=n)</code></td><td>Draw random values</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3.2 &nbsp;Bernoulli &amp; Binomial — the math of bets</h2>
+  <p>
+    A <strong>Bernoulli</strong> trial is a single yes/no event with success probability
+    <code>p</code>: one bet wins or loses; one signup converts or doesn't. Add up
+    <code>n</code> independent Bernoulli trials and you get the <strong>Binomial</strong>: the
+    number of successes in <code>n</code> tries.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Binomial</div>
+    <div class="math">P(X = k) = C(n, k) · pᵏ · (1 − p)ⁿ⁻ᵏ
+
+mean = n·p        std = √(n·p·(1−p))</div>
+    "Out of n bets each with win-chance p, the probability of exactly k wins."
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 A 10-leg night</div>
+    A sportsbook bettor places 10 independent bets, each winning with p ≈ 0.40 (our data's
+    sportsbook win rate). How many do they win? That count is Binomial(n=10, p=0.40).
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Binomial: wins out of 10 bets">
+from scipy import stats
+
+n, p = 10, 0.40
+dist = stats.binom(n, p)
+
+print("Expected wins (n*p):", dist.mean())
+print("P(exactly 4 wins) :", round(dist.pmf(4), 4))
+print("P(5 or more wins) :", round(dist.sf(4), 4))   # sf(4) = P(X > 4) = P(X >= 5)
+print("P(zero wins)      :", round(dist.pmf(0), 4))
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Plot the Binomial PMF">
+import matplotlib.pyplot as plt
+from scipy import stats
+
+n, p = 10, 0.40
+k = range(0, n + 1)
+probs = stats.binom.pmf(k, n, p)
+
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.bar(k, probs, color="#36bcf7", edgecolor="white")
+ax.set_title(f"Binomial(n={n}, p={p}) — wins in a 10-bet night")
+ax.set_xlabel("number of winning bets"); ax.set_ylabel("probability")
+plt.show()
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Where you'll really use this</div>
+    The Binomial is the backbone of <strong>conversion analysis and A/B testing</strong>: if
+    200 visitors each convert with probability p, the number who convert is Binomial. That's
+    how you'll reason about whether 38/200 vs. 51/200 is a real lift or just noise (Module 7).
+  </div>
+
+  <h2>3.3 &nbsp;Poisson — counts per period</h2>
+  <p>
+    The <strong>Poisson</strong> distribution models the <em>number of events in a fixed
+    window</em> when events happen at a steady average rate, independently: deposits per day,
+    bets per minute, support tickets per hour, goals per match. It has a single parameter
+    <code>λ</code> (lambda) — the average count — and a signature property: its mean and
+    variance are both equal to λ.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Poisson</div>
+    <div class="math">P(X = k) = e^(−λ) · λᵏ / k!        mean = variance = λ</div>
+  </div>
+
+  <p>Let's estimate λ from data: the number of deposits the operator receives per day. First
+     get the daily counts in SQL, then fit and test the Poisson in Python.</p>
+
+  <div class="playground" data-engine="sql" data-title="Deposits per day (the raw counts)">
+SELECT deposit_date, COUNT(*) AS deposits_that_day
+FROM deposits
+GROUP BY deposit_date
+ORDER BY deposit_date
+LIMIT 12;
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Fit a Poisson to deposits-per-day">
+import matplotlib.pyplot as plt
+from scipy import stats
+
+per_day = deposits.groupby(deposits["deposit_date"].dt.date).size()
+lam = per_day.mean()
+print(f"lambda (mean deposits/day): {lam:.2f}")
+print(f"variance:                   {per_day.var():.2f}  (Poisson => ~equal to mean)")
+
+# Compare the observed histogram to the Poisson model
+kmax = per_day.max()
+ks = range(0, kmax + 1)
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(per_day, bins=range(0, kmax + 2), density=True, align="left",
+        color="#2a313c", edgecolor="white", label="observed")
+ax.plot(ks, stats.poisson.pmf(ks, lam), "o-", color="#36bcf7", label=f"Poisson(λ={lam:.1f})")
+ax.set_title("Deposits per day vs. a fitted Poisson")
+ax.set_xlabel("deposits in a day"); ax.set_ylabel("probability"); ax.legend()
+plt.show()
+  </div>
+
+  <h2>3.4 &nbsp;The Normal distribution</h2>
+  <p>
+    The <strong>Normal</strong> (Gaussian, "bell curve") is the most important distribution in
+    statistics — not because raw data is often normal, but because <em>averages</em> of data
+    are (that's the Central Limit Theorem, Module 4). It's defined by its mean μ and standard
+    deviation σ.
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ The 68–95–99.7 rule</div>
+    <div class="math">≈68% of values fall within  μ ± 1σ
+≈95% of values fall within  μ ± 2σ
+≈99.7% of values fall within μ ± 3σ</div>
+    A <strong>z-score</strong> rephrases any value as "how many σ from the mean":
+    <code>z = (x − μ) / σ</code>.
+  </div>
+
+  <div class="callout industry">
+    <div class="callout-title">🎰 Was yesterday's revenue unusual?</div>
+    Daily GGR swings a lot (casino variance is real). If you know the mean and σ of daily GGR,
+    a z-score instantly tells you whether a given day was a normal wobble or a genuine anomaly
+    worth investigating.
+  </div>
+
+  <div class="playground" data-engine="python" data-title="z-scores on daily GGR">
+import numpy as np
+from scipy import stats
+
+b = bets.copy()
+b["ggr"] = b["stake"] - b["payout"]
+daily = b.groupby(b["bet_date"].dt.date)["ggr"].sum()
+
+mu, sigma = daily.mean(), daily.std()
+print(f"daily GGR: mean ${mu:,.0f}, std ${sigma:,.0f}")
+
+# How extreme was the single best revenue day?
+best = daily.max()
+z = (best - mu) / sigma
+print(f"best day = ${best:,.0f}  ->  z = {z:.2f}")
+print(f"P(a day this high or higher under Normal) = {stats.norm.sf(z):.4f}")
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Standard normal & the 68-95-99.7 rule">
+import numpy as np, matplotlib.pyplot as plt
+from scipy import stats
+
+x = np.linspace(-4, 4, 400)
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.plot(x, stats.norm.pdf(x), color="#36bcf7", lw=2)
+for k, c in [(1, "#3fb950"), (2, "#d29922"), (3, "#f85149")]:
+    ax.axvline(k, color=c, ls="--", lw=1); ax.axvline(-k, color=c, ls="--", lw=1)
+ax.set_title("Standard Normal — ±1σ (68%), ±2σ (95%), ±3σ (99.7%)")
+ax.set_xlabel("z (standard deviations from mean)"); ax.set_ylabel("density")
+plt.show()
+
+# Verify the rule with the CDF:
+for k in (1, 2, 3):
+    inside = stats.norm.cdf(k) - stats.norm.cdf(-k)
+    print(f"within ±{k}σ: {inside*100:.1f}%")
+  </div>
+
+  <h2>3.5 &nbsp;Exponential — waiting times</h2>
+  <p>
+    The <strong>Exponential</strong> distribution models the <em>time between</em> events that
+    occur at a constant average rate — the flip side of the Poisson. If deposits arrive
+    Poisson, the gap between a player's deposits is Exponential. Its tell-tale sign:
+    <strong>mean ≈ standard deviation</strong>, and it's "memoryless."
+  </p>
+  <div class="callout formula">
+    <div class="callout-title">∑ Exponential</div>
+    <div class="math">pdf(x) = λ · e^(−λx)      mean = 1/λ      std = 1/λ</div>
+  </div>
+
+  <div class="playground" data-engine="python" data-title="Days between a player's deposits">
+import matplotlib.pyplot as plt
+from scipy import stats
+
+dd = deposits.sort_values(["player_id", "deposit_date"]).copy()
+dd["gap_days"] = dd.groupby("player_id")["deposit_date"].diff().dt.days
+gaps = dd["gap_days"].dropna()
+
+print(f"mean gap: {gaps.mean():.2f} days,  std: {gaps.std():.2f} days")
+print("mean ≈ std is the Exponential fingerprint.")
+
+rate = 1 / gaps.mean()
+x = range(0, int(gaps.quantile(0.99)) + 1)
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(gaps, bins=30, density=True, color="#2a313c", edgecolor="white", label="observed")
+ax.plot(x, stats.expon.pdf(x, scale=1/rate), color="#7c5cff", lw=2, label="Exponential fit")
+ax.set_title("Time between deposits ~ Exponential")
+ax.set_xlabel("days between deposits"); ax.set_ylabel("density"); ax.legend()
+plt.show()
+  </div>
+
+  <h2>3.6 &nbsp;Log-normal — the shape of money</h2>
+  <p>
+    Back in Module 1 we saw deposits are right-skewed. That skew has a name: deposits (and
+    stakes, and LTV) are approximately <strong>log-normal</strong> — their <em>logarithm</em>
+    is normally distributed. Take the log of a skewed money column and a bell curve appears.
+    This is why analysts so often model revenue on a <strong>log scale</strong>.
+  </p>
+
+  <div class="playground" data-engine="python" data-title="log(deposit) is approximately Normal">
+import numpy as np, matplotlib.pyplot as plt
+
+amt = deposits["amount"]
+fig, axes = plt.subplots(1, 2, figsize=(10, 4))
+axes[0].hist(amt[amt < 400], bins=40, color="#36bcf7", edgecolor="white")
+axes[0].set_title("deposit amount (raw) — right-skewed")
+axes[1].hist(np.log(amt), bins=40, color="#7c5cff", edgecolor="white")
+axes[1].set_title("log(deposit amount) — bell-shaped")
+plt.show()
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">💡 Why this matters for your job</div>
+    Means, t-tests, and linear regression all assume roughly symmetric data. Run them on raw
+    deposits and a single whale can dominate the result. Run them on <code>log(deposit)</code>
+    and they behave. "Log-transform skewed money before modeling" is one of the highest-ROI
+    habits in analytics.
+  </div>
+
+  <h2>Exercises</h2>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 1 — Parlay probability</div>
+    A 4-leg parlay wins only if <strong>all four</strong> legs win. If each leg wins
+    independently with p = 0.45, what's the probability the parlay cashes? (Hint: this is
+    <code>P(X = 4)</code> for a Binomial(4, 0.45), or just p⁴.)
+    <div class="playground" data-engine="python" data-title="Your turn">
+from scipy import stats
+p = 0.45
+# ...
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+from scipy import stats
+p = 0.45
+print("via binomial:", round(stats.binom.pmf(4, 4, p), 4))
+print("via p**4    :", round(p**4, 4))
+# ~0.041 — only ~4% of 4-leg parlays at these odds cash. That's the house edge compounding.
+      </div>
+    </details>
+  </div>
+
+  <div class="exercise">
+    <div class="callout-title">✏️ Exercise 2 — Poisson for support staffing</div>
+    Suppose customer-support chats arrive at λ = 5 per hour (Poisson). What's the probability
+    a given hour sees <strong>more than 8</strong> chats — i.e. you might be understaffed?
+    <div class="playground" data-engine="python" data-title="Your turn">
+from scipy import stats
+lam = 5
+# P(X > 8) = sf(8)
+    </div>
+    <details class="solution">
+      <summary>Show solution</summary>
+      <div class="playground" data-engine="python" data-title="Solution">
+from scipy import stats
+lam = 5
+print("P(>8 chats/hr):", round(stats.poisson.sf(8, lam), 4))
+# ~0.068 — about 1 hour in 15 exceeds 8 chats. Staff for the tail, not the average.
+      </div>
+    </details>
+  </div>
+
+  <div class="callout intuition">
+    <div class="callout-title">🧠 Distribution cheat-sheet</div>
+    <ul style="margin:6px 0">
+      <li><strong>Bernoulli / Binomial</strong> — yes/no outcomes &amp; counts of successes (conversion, wins).</li>
+      <li><strong>Poisson</strong> — counts per period at a steady rate (deposits/day, arrivals).</li>
+      <li><strong>Normal</strong> — symmetric data &amp; (crucially) averages; z-scores flag anomalies.</li>
+      <li><strong>Exponential</strong> — waiting times between events (mean ≈ std).</li>
+      <li><strong>Log-normal</strong> — skewed money (deposits, stakes, LTV); model on a log scale.</li>
+    </ul>
+  </div>
+
+  <div class="pager">
+    <a class="prv" href="module-02-probability-fundamentals.html"><small>← Previous</small> 02 · Probability Fundamentals</a>
+    <a class="nxt" href="module-04-sampling-clt.html"><small>Next →</small> 04 · Sampling &amp; the CLT</a>
+  </div>
+</main>
+
+<script src="../assets/js/data.js"></script>
+<script src="../assets/js/layout.js"></script>
+<script src="../assets/js/sql-engine.js"></script>
+<script src="../assets/js/py-engine.js"></script>
+<script src="../assets/js/playground.js"></script>
+</body>
+</html>
